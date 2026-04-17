@@ -7,3 +7,6 @@ lgtm:
 approve:
   allow_author: true
   auto_apply: true
+
+override:
+  allow: [puerco]  # users who may /override 
