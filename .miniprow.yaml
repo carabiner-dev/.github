@@ -1,12 +1,9 @@
 # Miniprow configuration for the carabiner repos
 ---
 lgtm:
-  allow_author: true
-  auto_lgtm_reviewers: true
-  allow:
-    - puerco
+  self_allow: [puerco]
+  auto_apply: true
 
 approve:
-  auto_approve_owners: true
-  allow:
-    - puerco
+  allow_author: true
+  auto_apply: true
