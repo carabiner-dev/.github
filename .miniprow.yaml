@@ -10,3 +10,14 @@ approve:
 
 override:
   allow: [puerco]  # users who may /override 
+
+
+tagger:
+  enabled: true
+  policies:
+    all:
+      - id: gitsign-commit-signature
+        location:
+          uri: git+https://github.com/carabiner-dev/policies#gitsign/gitsign-commit-signature.hjson
+        identities:
+          - "sigstore::https://accounts.google.com::puerco@carabiner.dev"
