@@ -93,30 +93,40 @@
         {
             // The provenance format drop ships changed over time: early
             // prereleases carry SLSA v0.2 statements, everything from v0.0.1
-            // on carries SLSA v1. Branch on the version being installed so
-            // stable releases are held to the current format while the old
-            // prereleases are still verifiable with what they shipped.
-            id: provenance-generation
+            // on carries SLSA v1. Each policy declares the releases it applies
+            // to with a `when` condition on the version drop is installing;
+            // the one that does not apply is skipped, not failed.
+            id: stable-release-slsa-v1
+            when: { expression: "semver.prerelease(context.drop_version) == ''" }
             meta: {
-                description: "Stable releases ship SLSA v1 provenance; prereleases may still ship the v0.2 format they were built with"
-                assert_mode: "OR"
+                description: "Stable releases ship SLSA v1 provenance"
                 controls: [ { framework: "SLSA", class: "BUILD", id: "LEVEL_2" } ]
             }
             tenets: [
                 {
-                    id: stable-release-slsa-v1
+                    id: has-slsa-v1
                     predicates: { types: ["https://slsa.dev/provenance/v1"] }
-                    code: "semver.prerelease(context.drop_version) == '' && size(predicates) > 0"
+                    code: "size(predicates) > 0"
                     assessment: { message: "Stable release {{ .Context.drop_version }} ships SLSA v1 provenance" }
                     error: {
                         message: "Stable releases must ship SLSA v1 provenance"
                         guidance: "Release {{ .Context.drop_version }} has no https://slsa.dev/provenance/v1 attestation"
                     }
                 }
+            ]
+        }
+        {
+            id: prerelease-slsa-provenance
+            when: { expression: "semver.prerelease(context.drop_version) != ''" }
+            meta: {
+                description: "Prereleases ship SLSA provenance in the format they were built with"
+                controls: [ { framework: "SLSA", class: "BUILD", id: "LEVEL_2" } ]
+            }
+            tenets: [
                 {
-                    id: prerelease-any-slsa
+                    id: has-slsa
                     predicates: { types: ["https://slsa.dev/provenance/v0.2", "https://slsa.dev/provenance/v1"] }
-                    code: "semver.prerelease(context.drop_version) != '' && size(predicates) > 0"
+                    code: "size(predicates) > 0"
                     assessment: { message: "Prerelease {{ .Context.drop_version }} ships SLSA provenance" }
                     error: {
                         message: "Prereleases must ship SLSA provenance"
