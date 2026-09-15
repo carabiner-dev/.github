@@ -17,7 +17,8 @@
             The admitted provenance is then checked with the SLSA policies from
             the carabiner policies repository: the artifact was built by the
             release workflow, with the GitHub Actions workflow build type, from
-            the drop repository.
+            the drop repository. Stable releases must ship SLSA v1 provenance;
+            prereleases may ship the v0.2 format they were built with.
             '''
         version: 1
         frameworks: [
@@ -48,6 +49,15 @@
 
             // Built from the drop repository
             buildPoint: { value: "git+ssh://github.com/carabiner-dev/drop" }
+
+            // The release version being installed, without the leading v.
+            // drop injects it at verification time; when evaluating with the
+            // ampel CLI pass it explicitly: -x drop_version:1.2.3
+            drop_version: {
+                type: "string"
+                required: true
+                description: "Version of the release being verified (injected by drop)"
+            }
         }
     }
 
@@ -79,6 +89,41 @@
                 location: { uri: "git+https://github.com/carabiner-dev/policies@38b963e3ece486af6502a454df9609bbc95abcbd#slsa/slsa-build-point.json" }
             }
             meta: { controls: [ { framework: "SLSA", class: "BUILD", id: "LEVEL_2" } ] }
+        }
+        {
+            // The provenance format drop ships changed over time: early
+            // prereleases carry SLSA v0.2 statements, everything from v0.0.1
+            // on carries SLSA v1. Branch on the version being installed so
+            // stable releases are held to the current format while the old
+            // prereleases are still verifiable with what they shipped.
+            id: provenance-generation
+            meta: {
+                description: "Stable releases ship SLSA v1 provenance; prereleases may still ship the v0.2 format they were built with"
+                assert_mode: "OR"
+                controls: [ { framework: "SLSA", class: "BUILD", id: "LEVEL_2" } ]
+            }
+            tenets: [
+                {
+                    id: stable-release-slsa-v1
+                    predicates: { types: ["https://slsa.dev/provenance/v1"] }
+                    code: "semver.prerelease(context.drop_version) == '' && size(predicates) > 0"
+                    assessment: { message: "Stable release {{ .Context.drop_version }} ships SLSA v1 provenance" }
+                    error: {
+                        message: "Stable releases must ship SLSA v1 provenance"
+                        guidance: "Release {{ .Context.drop_version }} has no https://slsa.dev/provenance/v1 attestation"
+                    }
+                }
+                {
+                    id: prerelease-any-slsa
+                    predicates: { types: ["https://slsa.dev/provenance/v0.2", "https://slsa.dev/provenance/v1"] }
+                    code: "semver.prerelease(context.drop_version) != '' && size(predicates) > 0"
+                    assessment: { message: "Prerelease {{ .Context.drop_version }} ships SLSA provenance" }
+                    error: {
+                        message: "Prereleases must ship SLSA provenance"
+                        guidance: "Release {{ .Context.drop_version }} has no SLSA provenance attestation"
+                    }
+                }
+            ]
         }
     ]
 }
